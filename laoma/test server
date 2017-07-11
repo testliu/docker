@@ -1,0 +1,84 @@
+mysql.so文件位置。
+/usr/local/lib/php/extensions/no-debug-non-zts-20131226
+源码位置
+/var/www/html
+配置文件位置
+/usr/local/etc/php/
+
+升级代码
+在/root/code下新建一个文件夹，将代码上传至新建的文件夹内。
+cd /root/service
+cp upcode.sh rollback.sh
+vi upcode.sh
+codeVER="/root/code/1.0"  //修改这个1.0为你刚刚新建的文件夹名字，保存退出
+./upcode.sh
+
+代码更新不用停服务，如果需要回滚至上一版本，执行rollback.sh脚本，可以回滚至任意版本，只要修改codeVER="/root/code/1.0" 这里就可以。
+重启服务可以直接执行upcode.sh脚本，以后会使用docker命令可以使用其他命令。
+在/root/service/nginx下有个log分割的脚本，我设置了每天23：59分执行一次分割当天nginx的log文件。
+在/root/service/mysql下有个run.sh的脚本是启动mysql容器提供数据库服务的。
+/root/service/php下目前是空的，预留给php一些配置文件等使用。
+
+nginx:172.18.0.5
+mysql:172.18.0.20
+php:172.18.0.10
+
+
+docker pull php:5.6-fpm-alpine
+docker pull nginx:latest
+docker pull mysql:5.6
+创建新网络
+docker network create --subnet=172.18.0.0/16 laoma
+
+php容器添加mysql扩展，容器内执行
+cd /usr/local/bin
+./docker-php-ext-install mysqli iconv mcrypt
+完成后已经load进配置文件
+docker commit 容器名  镜像:tag
+docker tag imageid name:tag  //镜像改名
+
+#!/bin/bash
+codeVER="/root/code/1.0"
+# nginx
+docker rm -f nginx-web
+docker run -d --name nginx-web \
+ --net laoma --ip 172.18.0.5 \
+ -v /usr/share/zoneinfo/Asia/Shanghai:/etc/localtime:ro \
+ -v /root/service/nginx/conf/nginx.conf:/etc/nginx/nginx.conf:ro \
+ -v $codeVER/:/www/ \
+ -v /root/service/nginx/logs/:/log/ \
+ -p 80:80 \
+ nginx:latest
+# php
+docker rm -f php-5.6
+docker run -d --rm --name php-5.6 \
+ --net laoma --ip 172.18.0.10 \
+ -v /etc/localtime:/etc/localtime:ro \
+ -v /root/service/php/php.so/mysqli.so:/usr/local/lib/php/extensions/no-debug-non-zts-20131226/mysqli.so \
+ -v /root/service/php/php.so/mcrypt.so:/usr/local/lib/php/extensions/no-debug-non-zts-20131226/mcrypt.so \
+ -v /root/service/php/conf/php.ini:/usr/local/etc/php/php.ini \
+ -v $codeVER/:/var/www/html \
+ php:5.6
+
+docker ps
+
+#!/bin/bash
+sudo docker rm -f php-5.6
+sudo docker run -d --rm --name php-5.6 \
+ -v /etc/localtime:/etc/localtime:ro \
+ -v /home/ceyes/liujun/a/:/var/www/html/ \
+ php:5.6-fpm-alpine
+sudo docker ps
+
+Dockerfile
+FROM php:5.6-fpm-alpine
+# Install mysqli
+RUN apt-get update && apt-get install -y \
+    libfreetype6-dev \
+    libjpeg62-turbo-dev \
+    libmcrypt-dev \
+    libpng12-dev \
+    && docker-php-ext-install mysqli iconv mcrypt \
+    && docker-php-ext-configure gd --with-freetype-dir=/usr/include/ --with-jpeg-dir=/usr/include/ \
+    && docker-php-ext-install gd
+CMD ["php-fpm"]
