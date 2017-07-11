@@ -1,0 +1,5 @@
+CE版下载安装升级
+curl -fsSL https://get.docker.com/ | sh
+
+ubuntu卸载docker
+apt-get remove docker docker-engine docker.io
