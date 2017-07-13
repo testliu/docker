@@ -43,7 +43,7 @@ codeVER="/root/code/1.0"
 docker rm -f nginx-web
 docker run -d --name nginx-web \
  --net laoma --ip 172.18.0.5 \
- -v /usr/share/zoneinfo/Asia/Shanghai:/etc/localtime:ro \
+ -v /etc/localtime:/etc/localtime:ro \
  -v /root/service/nginx/conf/nginx.conf:/etc/nginx/nginx.conf:ro \
  -v $codeVER/:/www/ \
  -v /root/service/nginx/logs/:/log/ \
